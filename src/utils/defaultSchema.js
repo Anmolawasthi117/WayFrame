@@ -3,8 +3,7 @@
 export const defaultFloor = {
   id: "",
   name: "",
-  level: 0, // floor number (G=0, 1, 2, ...)
-  imageUrl: "", // base64 or URL
+  level: 0, // base64 or URL
   nodes: [],
 };
 

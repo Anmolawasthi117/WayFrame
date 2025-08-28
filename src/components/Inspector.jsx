@@ -148,8 +148,6 @@ const Inspector = () => {
     }
   }, [selectedNode, activeFloor, project?.connections, saveState, removeConnection, removeNode, setSelectedNode]);
 
-    // Continue Inspector component from where it was cut off
-
  // Get project statistics
  const getProjectStats = useCallback(() => {
    const totalNodes = project?.floors?.reduce((acc, floor) => acc + (floor.nodes?.length || 0), 0) || 0;
@@ -510,7 +508,8 @@ const Inspector = () => {
      {/* JSON Schema Editor Modal */}
      {showJsonEditor && (
        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-         <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full mx-4 max-h-[85vh] flex flex-col">
+         <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full mx-4 max-h-[85vh] h-full
+          flex flex-col">
            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50 rounded-t-xl">
              <h3 className="text-lg font-bold text-gray-800">Project Schema Editor</h3>
              <div className="flex gap-2">
@@ -530,7 +529,7 @@ const Inspector = () => {
              </div>
            </div>
            
-           <div className="flex-1 p-4 overflow-hidden">
+           <div className="flex-1   p-4 overflow-hidden">
              <textarea
                value={jsonValue}
                onChange={(e) => setJsonValue(e.target.value)}
