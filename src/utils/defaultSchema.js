@@ -1,4 +1,4 @@
-// src/schema/defaultSchema.js
+// src/utils/defaultSchema.js
 
 export const defaultFloor = {
   id: "",
