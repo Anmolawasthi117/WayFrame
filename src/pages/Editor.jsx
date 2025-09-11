@@ -1,7 +1,7 @@
 // src/pages/Editor.jsx
 import { useState, useEffect } from "react";
 import FloorManager from "../components/FloorManager";
-import FloorCanvas from "../components/FloorCanvas";
+import FloorCanvas from "../components/Canvas/FloorCanvas";
 import Inspector from "../components/Inspector";
 import { useProjectStore } from "../store/useProjectStore";
 import { useHistoryStore } from "../store/useHistoryStore";
