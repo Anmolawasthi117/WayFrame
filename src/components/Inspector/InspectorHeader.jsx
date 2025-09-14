@@ -1,4 +1,4 @@
-import { Undo2, Redo2, FileDown, FileUp, Code2 } from "lucide-react";
+import { Undo2, Redo2, FileDown, FileUp, Code2, Trash2 } from "lucide-react";
 
 const InspectorHeader = ({
   exportProject,
@@ -8,6 +8,7 @@ const InspectorHeader = ({
   canUndo,
   canRedo,
   openJsonEditor,
+  resetProject, // <-- pass reset from your zustand store
 }) => {
   const handleExport = () => {
     try {
@@ -37,6 +38,14 @@ const InspectorHeader = ({
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleHardReset = () => {
+    if (window.confirm("⚠️ This will clear all saved project data. Continue?")) {
+      localStorage.removeItem("wayframe-project"); // wipe persisted store
+      resetProject(); // reset in-memory store to default
+      window.location.reload(); // optional: full reload to ensure clean state
+    }
   };
 
   return (
@@ -80,6 +89,15 @@ const InspectorHeader = ({
           title="Edit JSON Schema"
         >
           <Code2 size={18} />
+        </button>
+
+        {/* 🔥 Hard Reset Button */}
+        <button
+          onClick={handleHardReset}
+          className="p-1.5 rounded hover:bg-red-200 text-red-600"
+          title="Hard Reset (Clear Local Storage)"
+        >
+          <Trash2 size={18} />
         </button>
       </div>
     </div>

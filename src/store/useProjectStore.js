@@ -1,12 +1,46 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-const defaultProjectSchema = {
-  meta: { name: "Untitled Project", createdAt: Date.now() },
-  floors: [],          // each floor: { id, name, nodes: [] }
-  connections: [],     // { from: nodeId, to: nodeId }
+// ---------------- DEFAULTS ----------------
+export const defaultNode = {
+  nodeId: "",
+  name: "",
+  type: "room", // room | hallway | stair | elevator
+  coordinates: { x: 0, y: 0, floor: "" },
+  connections: [], // { nodeId, distance }
+  meta: {},
 };
 
+export const defaultFloor = {
+  id: "",
+  name: "",
+  level: 0,
+  nodes: [defaultNode],
+  meta: {},
+};
+
+export const defaultConnection = {
+  from: "",
+  to: "",
+  distance: 0,
+  type: "stair", // or elevator
+  meta: {},
+};
+
+export const defaultProjectSchema = {
+  building: {
+    id: "default_building",
+    name: "New Project",
+    meta: {
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  },
+  floors: [],
+  connections: [], // global inter-floor connections
+};
+
+// ---------------- STORE ----------------
 export const useProjectStore = create(
   persist(
     (set, get) => ({
@@ -20,14 +54,20 @@ export const useProjectStore = create(
         set((state) => ({
           project: {
             ...state.project,
-            floors: [...state.project.floors, { ...floor, nodes: [] }],
+            floors: [...state.project.floors, { ...defaultFloor, ...floor, nodes: [] }],
           },
         })),
 
       // ---------------- META ----------------
-      updateMeta: (meta) =>
+      updateBuildingMeta: (meta) =>
         set((state) => ({
-          project: { ...state.project, meta: { ...state.project.meta, ...meta } },
+          project: {
+            ...state.project,
+            building: {
+              ...state.project.building,
+              meta: { ...state.project.building.meta, ...meta, updatedAt: new Date().toISOString() },
+            },
+          },
         })),
 
       // ---------------- NODES ----------------
@@ -36,7 +76,7 @@ export const useProjectStore = create(
           project: {
             ...state.project,
             floors: state.project.floors.map((f) =>
-              f.id === floorId ? { ...f, nodes: [...f.nodes, node] } : f
+              f.id === floorId ? { ...f, nodes: [...f.nodes, { ...defaultNode, ...node }] } : f
             ),
           },
         })),
@@ -50,7 +90,7 @@ export const useProjectStore = create(
                 ? {
                     ...f,
                     nodes: f.nodes.map((n) =>
-                      n.id === nodeId ? { ...n, ...updates } : n
+                      n.nodeId === nodeId ? { ...n, ...updates } : n
                     ),
                   }
                 : f
@@ -61,15 +101,42 @@ export const useProjectStore = create(
       setSelectedNode: (nodeId) => set({ selectedNodeId: nodeId }),
 
       // ---------------- CONNECTIONS ----------------
-      addConnection: (from, to) =>
+      // intra-floor: push into node.connections
+      addLocalConnection: (floorId, fromNodeId, toNodeId, distance = 0) =>
         set((state) => ({
           project: {
             ...state.project,
-            connections: [...state.project.connections, { from, to }],
+            floors: state.project.floors.map((f) =>
+              f.id === floorId
+                ? {
+                    ...f,
+                    nodes: f.nodes.map((n) =>
+                      n.nodeId === fromNodeId
+                        ? {
+                            ...n,
+                            connections: [
+                              ...n.connections,
+                              { nodeId: toNodeId, distance },
+                            ],
+                          }
+                        : n
+                    ),
+                  }
+                : f
+            ),
           },
         })),
 
-      removeConnection: (from, to) =>
+      // global: cross-floor connections
+      addGlobalConnection: (connection) =>
+        set((state) => ({
+          project: {
+            ...state.project,
+            connections: [...state.project.connections, { ...defaultConnection, ...connection }],
+          },
+        })),
+
+      removeGlobalConnection: (from, to) =>
         set((state) => ({
           project: {
             ...state.project,
@@ -84,38 +151,48 @@ export const useProjectStore = create(
       exportProject: () => {
   const raw = get().project;
 
-  // deep clone and sanitize
   const cleanProject = {
     ...raw,
-    floors: raw.floors.map(floor => ({
-      ...floor,
-      // remove imageUrl or any heavy UI-only fields
-      ...(floor.imageUrl ? {} : {}),
-      nodes: floor.nodes.map(node => ({
-        ...node,
-        // also strip UI-only stuff if needed
-        ...(node.imageUrl ? {} : {}),
+    floors: raw.floors.map((floor) => ({
+      id: floor.id,
+      name: floor.name,
+      level: floor.level,
+      meta: floor.meta || {},
+      nodes: floor.nodes.map((node) => ({
+        nodeId: node.nodeId,
+        name: node.name,
+        type: node.type,
+        coordinates: { ...node.coordinates },
+        // only keep local same-floor connections
+        connections: (node.connections || []).map((c) => ({
+          nodeId: c.nodeId,
+          distance: c.distance ?? 0,
+        })),
+        meta: node.meta || {},
       })),
     })),
+    // keep only true inter-floor connections
+    connections: (raw.connections || []).map((c) => ({
+      from: c.from,
+      to: c.to,
+      distance: c.distance ?? 0,
+      type: c.type || "stair",
+      meta: c.meta || {},
+    })),
   };
-
-  // Explicitly delete unwanted props
-  cleanProject.floors.forEach(floor => {
-    delete floor.imageUrl;
-    floor.nodes.forEach(node => {
-      delete node.imageUrl;
-    });
-  });
 
   return JSON.stringify(cleanProject, null, 2);
 },
 
 
       // ---------------- RESET ----------------
-      reset: () => set({ project: defaultProjectSchema, activeFloorId: null, selectedNodeId: null }),
+      reset: () =>
+        set({
+          project: defaultProjectSchema,
+          activeFloorId: null,
+          selectedNodeId: null,
+        }),
     }),
-    {
-      name: "wayframe-project", // persisted in localStorage
-    }
+    { name: "wayframe-project" }
   )
 );

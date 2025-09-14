@@ -1,27 +1,28 @@
 import { create } from "zustand";
-import { useProjectStore } from "./useProjectStore";
+import { useProjectStore, defaultFloor } from "./useProjectStore";
 
 export const useFloorStore = create((set, get) => ({
   addFloor: (floorData) => {
-    const newFloor = { id: Date.now(), nodes: [], ...floorData };
+    const cleanFloor = { ...defaultFloor, id: Date.now().toString(), ...floorData };
 
     useProjectStore.setState((state) => {
-      const updatedFloors = [...state.project.floors, newFloor];
+      const updatedFloors = [...state.project.floors, cleanFloor];
       return {
         project: { ...state.project, floors: updatedFloors },
-        activeFloorId: newFloor.id, // new floor ko active bhi kar do
+        activeFloorId: cleanFloor.id,
       };
     });
 
-    return newFloor.id; // id return karo
+    return cleanFloor.id;
   },
 
   updateFloor: (floorId, updates) => {
+    const { imgUrl, ...cleanUpdates } = updates; // 🚫 strip UI-only stuff
     useProjectStore.setState((state) => ({
       project: {
         ...state.project,
         floors: state.project.floors.map((f) =>
-          f.id === floorId ? { ...f, ...updates } : f
+          f.id === floorId ? { ...f, ...cleanUpdates } : f
         ),
       },
     }));
@@ -30,13 +31,10 @@ export const useFloorStore = create((set, get) => ({
   removeFloor: (floorId) => {
     useProjectStore.setState((state) => {
       const updatedFloors = state.project.floors.filter((f) => f.id !== floorId);
-
-      // agar delete hua floor active tha → new active set karo
       let newActiveId = state.activeFloorId;
       if (state.activeFloorId === floorId) {
         newActiveId = updatedFloors.length ? updatedFloors[0].id : null;
       }
-
       return {
         project: { ...state.project, floors: updatedFloors },
         activeFloorId: newActiveId,
