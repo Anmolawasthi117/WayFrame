@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import FloorManager from "../components/FloorManager/FloorManager";
 import FloorCanvas from "../components/Canvas/FloorCanvas";
-import Inspector from "../components/Inspector";
+import Inspector from "../components/Inspector/Inspector";
 import { useProjectStore } from "../store/useProjectStore";
 import { useHistoryStore } from "../store/useHistoryStore";
 import { Settings, HelpCircle, Maximize2, Minimize2 } from "lucide-react";
