@@ -81,7 +81,35 @@ export const useProjectStore = create(
 
       // ---------------- IMPORT / EXPORT ----------------
       importProject: (json) => set({ project: JSON.parse(json) }),
-      exportProject: () => JSON.stringify(get().project, null, 2),
+      exportProject: () => {
+  const raw = get().project;
+
+  // deep clone and sanitize
+  const cleanProject = {
+    ...raw,
+    floors: raw.floors.map(floor => ({
+      ...floor,
+      // remove imageUrl or any heavy UI-only fields
+      ...(floor.imageUrl ? {} : {}),
+      nodes: floor.nodes.map(node => ({
+        ...node,
+        // also strip UI-only stuff if needed
+        ...(node.imageUrl ? {} : {}),
+      })),
+    })),
+  };
+
+  // Explicitly delete unwanted props
+  cleanProject.floors.forEach(floor => {
+    delete floor.imageUrl;
+    floor.nodes.forEach(node => {
+      delete node.imageUrl;
+    });
+  });
+
+  return JSON.stringify(cleanProject, null, 2);
+},
+
 
       // ---------------- RESET ----------------
       reset: () => set({ project: defaultProjectSchema, activeFloorId: null, selectedNodeId: null }),
