@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useProjectStore } from "../../store/useProjectStore";
+import { useFloorStore } from "../../store/useFloorStore";
 import { useHistoryStore } from "../../store/useHistoryStore";
 import { FloorUpload } from "./FloorUpload";
 import { FloorList } from "./FloorList";
@@ -17,9 +18,7 @@ const FloorManager = () => {
   const project = useProjectStore((s) => s.project);
   const activeFloorId = useProjectStore((s) => s.activeFloorId);
   const setActiveFloor = useProjectStore((s) => s.setActiveFloor);
-  const addFloor = useProjectStore((s) => s.addFloor);
-  const updateFloor = useProjectStore((s) => s.updateFloor);
-  const removeFloor = useProjectStore((s) => s.removeFloor);
+  const { addFloor, updateFloor, removeFloor } = useFloorStore();
   const { saveState } = useHistoryStore();
 
   const [editingId, setEditingId] = useState(null);
@@ -42,7 +41,7 @@ const FloorManager = () => {
           await addFloor({
             name,
             level: project.floors.length + i,
-            imgUrl: base64, // Note: imgUrl is stripped in the store
+            imageUrl: base64,
           });
         }
       } catch (error) {
@@ -69,9 +68,7 @@ const FloorManager = () => {
   const handleDrop = useCallback(
     (e) => {
       e.preventDefault();
-      const files = Array.from(e.dataTransfer.files).filter((file) =>
-        file.type.startsWith("image/")
-      );
+      const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith("image/"));
       if (files.length > 0) handleUpload(files);
     },
     [handleUpload]
@@ -79,8 +76,7 @@ const FloorManager = () => {
 
   const handleFloorDelete = useCallback(
     (floorId, floorName) => {
-      const hasNodes =
-        project.floors.find((f) => f.id === floorId)?.nodes?.length || 0;
+      const hasNodes = project.floors.find((f) => f.id === floorId)?.nodes?.length || 0;
       const message = hasNodes
         ? `Delete floor "${floorName}" and all its ${hasNodes} nodes?`
         : `Delete floor "${floorName}"?`;
@@ -93,13 +89,10 @@ const FloorManager = () => {
     [project.floors, saveState, removeFloor]
   );
 
-  const handleFloorEdit = useCallback(
-    (floor) => {
-      setEditingId(floor.id);
-      setEditName(floor.name);
-    },
-    []
-  );
+  const handleFloorEdit = useCallback((floor) => {
+    setEditingId(floor.id);
+    setEditName(floor.name);
+  }, []);
 
   const handleFloorUpdate = useCallback(
     (floorId, name) => {
@@ -145,10 +138,7 @@ const FloorManager = () => {
       {/* Footer */}
       <FloorStats
         totalFloors={project.floors.length}
-        totalNodes={project.floors.reduce(
-          (acc, f) => acc + (f.nodes?.length || 0),
-          0
-        )}
+        totalNodes={project.floors.reduce((acc, f) => acc + (f.nodes?.length || 0), 0)}
         totalConnections={project.connections?.length || 0}
       />
     </div>

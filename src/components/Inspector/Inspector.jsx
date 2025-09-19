@@ -1,5 +1,8 @@
 import { useState, useCallback } from "react";
 import { useProjectStore } from "../../store/useProjectStore";
+import { useNodeStore } from "../../store/useNodeStore";
+import { useConnectionStore } from "../../store/useConnectionStore";
+import { useUiStore } from "../../store/useUiStore";
 import { useHistoryStore } from "../../store/useHistoryStore";
 import { Eye } from "lucide-react";
 
@@ -13,16 +16,16 @@ const Inspector = () => {
   const activeFloorId = useProjectStore((s) => s.activeFloorId);
   const exportProject = useProjectStore((s) => s.exportProject);
   const importProject = useProjectStore((s) => s.importProject);
-  const removeNode = useProjectStore((s) => s.removeNode);
-  const removeConnection = useProjectStore((s) => s.removeLocalConnection);
-  const selectedNodeId = useProjectStore((s) => s.selectedNodeId);
-  const setSelectedNode = useProjectStore((s) => s.setSelectedNode);
+
+  const { removeNode } = useNodeStore();
+  const { removeConnection } = useConnectionStore();
+  const { selectedNodeId, setSelectedNode } = useUiStore();
   const { saveState, undo, redo, canUndo, canRedo } = useHistoryStore();
 
   const [showJsonEditor, setShowJsonEditor] = useState(false);
 
   const activeFloor = project?.floors?.find((f) => f.id === activeFloorId);
-  const selectedNode = activeFloor?.nodes?.find((n) => n.nodeId === selectedNodeId);
+  const selectedNode = activeFloor?.nodes?.find((n) => n.id === selectedNodeId);
 
   // open modal with current schema
   const openJsonEditor = useCallback(() => {
@@ -30,24 +33,22 @@ const Inspector = () => {
   }, []);
 
   // save schema from modal
-  const handleJsonSave = useCallback(
-    (newSchema) => {
-      try {
-        saveState();
-        importProject(JSON.stringify(newSchema));
-      } catch (err) {
-        alert("Invalid schema update");
-      }
-    },
-    [saveState, importProject]
-  );
+  const handleJsonSave = (newSchema) => {
+    try {
+      saveState();
+      importProject(JSON.stringify(newSchema));
+    } catch (err) {
+      alert("Invalid schema update");
+    }
+  };
 
   // stats for overview
   const getProjectStats = useCallback(() => {
     const totalNodes =
       project?.floors?.reduce((acc, floor) => acc + (floor.nodes?.length || 0), 0) || 0;
     const totalConnections = project?.connections?.length || 0;
-    return { totalNodes, totalConnections, floorCount: project?.floors?.length || 0 };
+    const floorCount = project?.floors?.length || 0;
+    return { totalNodes, totalConnections, floorCount };
   }, [project]);
 
   const stats = getProjectStats();
