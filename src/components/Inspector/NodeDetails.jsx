@@ -1,19 +1,23 @@
-import { Trash2, Edit3, Check, X, Link, Tag } from "lucide-react";
+import { Trash2, Edit3, Check, X, Link, Tag, Plus } from "lucide-react";
 import { useState } from "react";
+import { useProjectStore } from "../../store/useProjectStore";
 
 const NodeDetails = ({
-  project,
-  activeFloor,
   selectedNode,
+  activeFloor,
   setSelectedNode,
-  updateNode,
-  removeNode,
-  removeConnection,
   saveState,
-  editingField,
-  setEditingField,
 }) => {
+  const [editingField, setEditingField] = useState(null);
   const [editValue, setEditValue] = useState("");
+
+  const updateNode = useProjectStore((s) => s.updateNode);
+  const removeNode = useProjectStore((s) => s.removeNode);
+  const addLocalConnection = useProjectStore((s) => s.addLocalConnection);
+  const removeLocalConnection = useProjectStore((s) => s.removeLocalConnection);
+  const addGlobalConnection = useProjectStore((s) => s.addGlobalConnection);
+  const removeGlobalConnection = useProjectStore((s) => s.removeGlobalConnection);
+  const project = useProjectStore((s) => s.project);
 
   if (!selectedNode) {
     return (
@@ -23,7 +27,7 @@ const NodeDetails = ({
     );
   }
 
-  // --- helpers ---
+  // --- Edit helpers ---
   const startEditing = (field, value) => {
     setEditingField(field);
     setEditValue(value);
@@ -31,7 +35,7 @@ const NodeDetails = ({
 
   const confirmEdit = (field) => {
     saveState();
-    updateNode(activeFloor.id, selectedNode.id, { [field]: editValue });
+    updateNode(activeFloor.id, selectedNode.nodeId, { [field]: editValue });
     setEditingField(null);
   };
 
@@ -43,9 +47,48 @@ const NodeDetails = ({
   const handleDeleteNode = () => {
     if (confirm("Delete this node?")) {
       saveState();
-      removeNode(activeFloor.id, selectedNode.id);
+      removeNode(activeFloor.id, selectedNode.nodeId);
       setSelectedNode(null);
     }
+  };
+
+  // --- Connection helpers ---
+  const localConnections = selectedNode.connections || [];
+  const globalConnections = project.connections.filter(
+    (c) => c.from === selectedNode.nodeId || c.to === selectedNode.nodeId
+  );
+
+  const getNodeById = (nodeId) =>
+    project.floors.flatMap((f) => f.nodes).find((n) => n.nodeId === nodeId);
+
+  const handleAddLocalConnection = () => {
+    const targetId = prompt("Enter Node ID to connect locally:");
+    if (!targetId) return;
+    const distance = parseFloat(prompt("Enter distance:") || "0");
+    saveState();
+    addLocalConnection(activeFloor.id, selectedNode.nodeId, targetId, distance);
+    addLocalConnection(activeFloor.id, targetId, selectedNode.nodeId, distance); // bidirectional
+  };
+
+  const handleRemoveLocalConnection = (targetId) => {
+    saveState();
+    removeLocalConnection(activeFloor.id, selectedNode.nodeId, targetId);
+    removeLocalConnection(activeFloor.id, targetId, selectedNode.nodeId); // bidirectional
+  };
+
+  const handleAddGlobalConnection = () => {
+    const targetId = prompt("Enter Node ID to connect globally:");
+    if (!targetId) return;
+    const type = prompt('Enter type ("stair" or "elevator"):', "stair");
+    if (!["stair", "elevator"].includes(type)) return alert("Invalid type");
+    const distance = parseFloat(prompt("Enter distance:") || "0");
+    saveState();
+    addGlobalConnection({ from: selectedNode.nodeId, to: targetId, type, distance });
+  };
+
+  const handleRemoveGlobalConnection = (from, to) => {
+    saveState();
+    removeGlobalConnection(from, to);
   };
 
   return (
@@ -62,11 +105,11 @@ const NodeDetails = ({
         </button>
       </div>
 
-      {/* --- Node ID (readonly) --- */}
+      {/* --- Node ID --- */}
       <div>
         <label className="text-xs text-gray-500">Node ID</label>
         <div className="text-sm font-mono bg-gray-50 p-2 rounded">
-          {selectedNode.id}
+          {selectedNode.nodeId}
         </div>
       </div>
 
@@ -107,7 +150,7 @@ const NodeDetails = ({
           value={selectedNode.type || "room"}
           onChange={(e) => {
             saveState();
-            updateNode(activeFloor.id, selectedNode.id, { type: e.target.value });
+            updateNode(activeFloor.id, selectedNode.nodeId, { type: e.target.value });
           }}
           className="w-full border rounded px-2 py-1 text-sm"
         >
@@ -129,7 +172,7 @@ const NodeDetails = ({
             value={selectedNode.coordinates?.x || 0}
             onChange={(e) => {
               saveState();
-              updateNode(activeFloor.id, selectedNode.id, {
+              updateNode(activeFloor.id, selectedNode.nodeId, {
                 coordinates: {
                   ...selectedNode.coordinates,
                   x: parseFloat(e.target.value) || 0,
@@ -143,7 +186,7 @@ const NodeDetails = ({
             value={selectedNode.coordinates?.y || 0}
             onChange={(e) => {
               saveState();
-              updateNode(activeFloor.id, selectedNode.id, {
+              updateNode(activeFloor.id, selectedNode.nodeId, {
                 coordinates: {
                   ...selectedNode.coordinates,
                   y: parseFloat(e.target.value) || 0,
@@ -155,44 +198,74 @@ const NodeDetails = ({
       </div>
 
       {/* --- Connections --- */}
-      {/* --- Connections --- */}
-<div>
-  <label className="text-xs text-gray-500 flex items-center gap-1">
-    <Link size={12} /> Connections
-  </label>
-  {project.connections
-    ?.filter((c) => c.from === selectedNode.id || c.to === selectedNode.id)
-    .map((c) => {
-      const otherNodeId = c.from === selectedNode.id ? c.to : c.from;
+      <div>
+        <label className="text-xs text-gray-500 flex items-center gap-1">
+          <Link size={12} /> Connections
+        </label>
 
-      // Find the connected node in any floor
-      const otherNode =
-        project.floors
-          ?.flatMap((f) => f.nodes || [])
-          .find((n) => n.id === otherNodeId) || null;
-
-      return (
-        <div
-          key={c.id}
-          className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded mt-1"
-        >
-          <span className="text-sm">
-            {otherNode?.name || `Node ${otherNodeId}`}
-          </span>
+        {/* Local connections */}
+        <div className="mt-1">
+          <div className="text-xs text-gray-400 mb-1">
+            Local ({localConnections.length})
+          </div>
+          {localConnections.map((c) => {
+            const otherNode = getNodeById(c.nodeId);
+            return (
+              <div
+                key={c.nodeId}
+                className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded mt-1"
+              >
+                <span className="text-sm">{otherNode?.name || c.nodeId}</span>
+                <button
+                  onClick={() => handleRemoveLocalConnection(c.nodeId)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            );
+          })}
           <button
-            onClick={() => {
-              saveState();
-              removeConnection(c.id);
-            }}
-            className="text-red-500 hover:text-red-700"
+            onClick={handleAddLocalConnection}
+            className="mt-1 flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 text-white rounded"
           >
-            <Trash2 size={14} />
+            <Plus size={12} /> Add Local
           </button>
         </div>
-      );
-    })}
-</div>
 
+        {/* Global connections */}
+        <div className="mt-2">
+          <div className="text-xs text-gray-400 mb-1">
+            Global ({globalConnections.length})
+          </div>
+          {globalConnections.map((c) => {
+            const otherNodeId = c.from === selectedNode.nodeId ? c.to : c.from;
+            const otherNode = getNodeById(otherNodeId);
+            return (
+              <div
+                key={c.from + "-" + c.to}
+                className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded mt-1"
+              >
+                <span className="text-sm">
+                  {otherNode?.name || otherNodeId} ({c.type})
+                </span>
+                <button
+                  onClick={() => handleRemoveGlobalConnection(c.from, c.to)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            );
+          })}
+          <button
+            onClick={handleAddGlobalConnection}
+            className="mt-1 flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 text-white rounded"
+          >
+            <Plus size={12} /> Add Global
+          </button>
+        </div>
+      </div>
 
       {/* --- Metadata --- */}
       <div>
@@ -200,7 +273,7 @@ const NodeDetails = ({
           <Tag size={12} /> Metadata
         </label>
         <div className="space-y-1">
-          {Object.entries(selectedNode.metadata || {}).map(([key, value]) => (
+          {Object.entries(selectedNode.meta || {}).map(([key, value]) => (
             <div
               key={key}
               className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded text-sm"
@@ -210,10 +283,10 @@ const NodeDetails = ({
               </span>
               <button
                 onClick={() => {
-                  const newMeta = { ...selectedNode.metadata };
+                  const newMeta = { ...selectedNode.meta };
                   delete newMeta[key];
                   saveState();
-                  updateNode(activeFloor.id, selectedNode.id, { metadata: newMeta });
+                  updateNode(activeFloor.id, selectedNode.nodeId, { meta: newMeta });
                 }}
                 className="text-red-500"
               >
@@ -228,16 +301,13 @@ const NodeDetails = ({
             if (!newKey) return;
             const newValue = prompt("Enter value for " + newKey);
             saveState();
-            updateNode(activeFloor.id, selectedNode.id, {
-              metadata: {
-                ...selectedNode.metadata,
-                [newKey]: newValue,
-              },
+            updateNode(activeFloor.id, selectedNode.nodeId, {
+              meta: { ...selectedNode.meta, [newKey]: newValue },
             });
           }}
-          className="mt-2 px-2 py-1 text-xs bg-blue-500 text-white rounded"
+          className="mt-2 px-2 py-1 text-xs bg-blue-500 text-white rounded flex items-center gap-1"
         >
-          Add Metadata
+          <Plus size={12} /> Add Metadata
         </button>
       </div>
     </div>
@@ -245,4 +315,3 @@ const NodeDetails = ({
 };
 
 export default NodeDetails;
-

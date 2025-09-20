@@ -1,7 +1,5 @@
 import { useState, useCallback } from "react";
 import { useProjectStore } from "../../store/useProjectStore";
-import { useNodeStore } from "../../store/useNodeStore";
-import { useConnectionStore } from "../../store/useConnectionStore";
 import { useUiStore } from "../../store/useUiStore";
 import { useHistoryStore } from "../../store/useHistoryStore";
 import { Eye } from "lucide-react";
@@ -12,40 +10,93 @@ import NodeDetails from "./NodeDetails";
 import JsonEditorModal from "./JsonEditorModal";
 
 const Inspector = () => {
+  // ------------------- STORE -------------------
   const project = useProjectStore((s) => s.project);
   const activeFloorId = useProjectStore((s) => s.activeFloorId);
   const exportProject = useProjectStore((s) => s.exportProject);
   const importProject = useProjectStore((s) => s.importProject);
+  const removeNode = useProjectStore((s) => s.removeNode);
+  const addLocalConnection = useProjectStore((s) => s.addLocalConnection);
+  const removeLocalConnection = useProjectStore((s) => s.removeLocalConnection);
+  const addGlobalConnection = useProjectStore((s) => s.addGlobalConnection);
+  const removeGlobalConnection = useProjectStore((s) => s.removeGlobalConnection);
 
-  const { removeNode } = useNodeStore();
-  const { removeConnection } = useConnectionStore();
   const { selectedNodeId, setSelectedNode } = useUiStore();
   const { saveState, undo, redo, canUndo, canRedo } = useHistoryStore();
 
   const [showJsonEditor, setShowJsonEditor] = useState(false);
 
+  // ------------------- ACTIVE FLOOR & NODE -------------------
   const activeFloor = project?.floors?.find((f) => f.id === activeFloorId);
-  const selectedNode = activeFloor?.nodes?.find((n) => n.id === selectedNodeId);
+  const selectedNode = activeFloor?.nodes?.find((n) => n.nodeId === selectedNodeId);
 
-  // open modal with current schema
-  const openJsonEditor = useCallback(() => {
-    setShowJsonEditor(true);
-  }, []);
+  // ------------------- CLEAN PROJECT FOR JSON EDITOR -------------------
+  const getCleanProjectForEditor = useCallback(() => {
+    return {
+      building: { ...project.building },
+      floors: project.floors.map((floor) => ({
+        id: floor.id,
+        name: floor.name,
+        level: floor.level,
+        nodes: floor.nodes.map((node) => ({
+          nodeId: node.nodeId,
+          name: node.name,
+          type: node.type,
+          coordinates: { ...node.coordinates },
+          connections: (node.connections || []).map((c) => ({
+            nodeId: c.nodeId,
+            distance: c.distance ?? 0,
+          })),
+        })),
+      })),
+      connections: (project.connections || []).map((c) => ({
+        from: c.from,
+        to: c.to,
+        type: c.type,
+        distance: c.distance ?? 0,
+      })),
+    };
+  }, [project]);
 
-  // save schema from modal
+  const openJsonEditor = useCallback(() => setShowJsonEditor(true), []);
+
   const handleJsonSave = (newSchema) => {
     try {
+      const sanitized = {
+        building: { ...newSchema.building },
+        floors: (newSchema.floors || []).map((f) => ({
+          id: f.id,
+          name: f.name,
+          level: f.level,
+          nodes: (f.nodes || []).map((n) => ({
+            nodeId: n.nodeId,
+            name: n.name,
+            type: n.type,
+            coordinates: { ...n.coordinates },
+            connections: (n.connections || []).map((c) => ({
+              nodeId: c.nodeId,
+              distance: c.distance ?? 0,
+            })),
+          })),
+        })),
+        connections: (newSchema.connections || []).map((c) => ({
+          from: c.from,
+          to: c.to,
+          type: c.type,
+          distance: c.distance ?? 0,
+        })),
+      };
+
       saveState();
-      importProject(JSON.stringify(newSchema));
+      importProject(JSON.stringify(sanitized));
     } catch (err) {
       alert("Invalid schema update");
     }
   };
 
-  // stats for overview
+  // ------------------- PROJECT STATS -------------------
   const getProjectStats = useCallback(() => {
-    const totalNodes =
-      project?.floors?.reduce((acc, floor) => acc + (floor.nodes?.length || 0), 0) || 0;
+    const totalNodes = project?.floors?.reduce((acc, f) => acc + (f.nodes?.length || 0), 0) || 0;
     const totalConnections = project?.connections?.length || 0;
     const floorCount = project?.floors?.length || 0;
     return { totalNodes, totalConnections, floorCount };
@@ -55,7 +106,7 @@ const Inspector = () => {
 
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
-      {/* Header */}
+      {/* HEADER */}
       <InspectorHeader
         exportProject={exportProject}
         importProject={importProject}
@@ -66,7 +117,7 @@ const Inspector = () => {
         openJsonEditor={openJsonEditor}
       />
 
-      {/* Body */}
+      {/* BODY */}
       <div className="flex-1 overflow-y-auto">
         <ProjectOverview project={project} stats={stats} />
         {activeFloor && <div className="border-b border-gray-100"></div>}
@@ -77,7 +128,10 @@ const Inspector = () => {
             activeFloor={activeFloor}
             saveState={saveState}
             removeNode={removeNode}
-            removeConnection={removeConnection}
+            addLocalConnection={addLocalConnection}
+            removeLocalConnection={removeLocalConnection}
+            addGlobalConnection={addGlobalConnection}
+            removeGlobalConnection={removeGlobalConnection}
             setSelectedNode={setSelectedNode}
           />
         ) : (
@@ -93,11 +147,11 @@ const Inspector = () => {
         )}
       </div>
 
-      {/* JSON Schema Editor Modal */}
+      {/* JSON SCHEMA EDITOR */}
       <JsonEditorModal
         isOpen={showJsonEditor}
         onClose={() => setShowJsonEditor(false)}
-        data={project}
+        data={getCleanProjectForEditor()}
         onSave={handleJsonSave}
       />
     </div>

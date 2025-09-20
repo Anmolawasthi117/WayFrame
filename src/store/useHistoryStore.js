@@ -7,31 +7,44 @@ export const useHistoryStore = create((set, get) => ({
   currentIndex: -1,
   maxHistorySize: 50,
 
+  // Save the current project state into history
   saveState: () => {
     const projectState = useProjectStore.getState().project;
     const { history, currentIndex, maxHistorySize } = get();
-    
-    // Remove any future states if we're not at the end
-    const newHistory = history.slice(0, currentIndex + 1);
-    
-    // Add new state
-    newHistory.push(JSON.parse(JSON.stringify(projectState)));
-    
-    // Limit history size
+
+    // Deep clone safely (structuredClone is better than JSON.parse/stringify)
+    const snapshot = structuredClone(projectState);
+
+    // Skip if no changes compared to the last snapshot
+    if (
+      currentIndex >= 0 &&
+      JSON.stringify(history[currentIndex]) === JSON.stringify(snapshot)
+    ) {
+      return;
+    }
+
+    // Remove any future states if we're not at the end (redo branch)
+    let newHistory = history.slice(0, currentIndex + 1);
+
+    // Add the new snapshot
+    newHistory.push(snapshot);
+
+    // Enforce max history size
     if (newHistory.length > maxHistorySize) {
       newHistory.shift();
-    } else {
-      set({ currentIndex: currentIndex + 1 });
     }
-    
-    set({ history: newHistory });
+
+    // Update index after push (adjusting if shift happened)
+    const newIndex = Math.min(newHistory.length - 1, currentIndex + 1);
+
+    set({ history: newHistory, currentIndex: newIndex });
   },
 
   undo: () => {
     const { history, currentIndex } = get();
     if (currentIndex > 0) {
       const prevState = history[currentIndex - 1];
-      useProjectStore.setState({ project: prevState });
+      useProjectStore.setState({ project: structuredClone(prevState) });
       set({ currentIndex: currentIndex - 1 });
     }
   },
@@ -40,7 +53,7 @@ export const useHistoryStore = create((set, get) => ({
     const { history, currentIndex } = get();
     if (currentIndex < history.length - 1) {
       const nextState = history[currentIndex + 1];
-      useProjectStore.setState({ project: nextState });
+      useProjectStore.setState({ project: structuredClone(nextState) });
       set({ currentIndex: currentIndex + 1 });
     }
   },
