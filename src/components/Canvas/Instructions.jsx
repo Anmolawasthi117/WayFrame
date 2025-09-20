@@ -9,6 +9,8 @@ const Instructions = () => {
         <p><kbd className="bg-gray-100 px-1 rounded">M</kbd> Toggle move mode</p>
         <p><kbd className="bg-gray-100 px-1 rounded">Del</kbd> Remove selected</p>
         <p><kbd className="bg-gray-100 px-1 rounded">Ctrl+Z</kbd> Undo</p>
+        <p><kbd className="bg-gray-100 px-1 rounded">Scroll</kbd> Zoom in/out</p>
+        <p><kbd className="bg-gray-100 px-1 rounded">Drag background</kbd> Pan around</p>
       </div>
     </div>
   );
