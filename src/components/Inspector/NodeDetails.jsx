@@ -158,7 +158,6 @@ const NodeDetails = ({
           <option value="hallway">Hallway</option>
           <option value="stair">Stair</option>
           <option value="elevator">Elevator</option>
-          <option value="entrance">Entrance</option>
         </select>
       </div>
 

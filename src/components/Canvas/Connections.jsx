@@ -1,51 +1,46 @@
-const Connections = ({ project, activeFloor, allNodes }) => {
-  if (!project || !activeFloor) return null;
+// src/components/floorcanvas/Connections.jsx
+import { Polyline } from "react-leaflet";
+import { gridToMapCoords } from "../../utils/transformCoords";
 
-  const floorNodes = activeFloor.nodes || [];
+const Connections = ({ nodes = [], floor }) => {
+  const lines = [];
 
-  // 🟢 Local connections (within this floor)
-  const localConnections = [];
-  floorNodes.forEach((node) => {
-    node.connections?.forEach((conn) => {
-      const target = floorNodes.find((n) => n.nodeId === conn.nodeId);
-      if (target) {
-        localConnections.push({
-          from: node,
-          to: target,
-          distance: conn.distance,
-        });
-      }
+  nodes.forEach((node) => {
+    node.connections?.forEach(({ nodeId: targetId }) => {
+      const target = nodes.find((n) => n.nodeId === targetId);
+      if (!target) return; // skip if target is not on this floor
+
+      // avoid drawing duplicate lines
+      const key = [node.nodeId, target.nodeId].sort().join("-");
+      if (lines.some((l) => l.key === key)) return;
+
+      const a = gridToMapCoords({ ...node.coordinates, floor });
+      const b = gridToMapCoords({ ...target.coordinates, floor });
+
+      lines.push({
+        key,
+        positions: [
+          [a.lat, a.lng],
+          [b.lat, b.lng],
+        ],
+      });
     });
   });
 
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-      {localConnections.map((c, idx) => {
-        if (
-          !c.from?.coordinates ||
-          !c.to?.coordinates ||
-          c.from.coordinates.x == null ||
-          c.from.coordinates.y == null ||
-          c.to.coordinates.x == null ||
-          c.to.coordinates.y == null
-        ) {
-          return null;
-        }
-
-        return (
-          <line
-            key={`local-${idx}`}
-            x1={`${c.from.coordinates.x}%`}
-            y1={`${c.from.coordinates.y}%`}
-            x2={`${c.to.coordinates.x}%`}
-            y2={`${c.to.coordinates.y}%`}
-            stroke="blue"
-            strokeWidth="2"
-            opacity="0.4"
-          />
-        );
-      })}
-    </svg>
+    <>
+      {lines.map((line) => (
+        <Polyline
+          key={line.key}
+          positions={line.positions}
+          pathOptions={{
+            color: "black",
+            weight: 2,
+            opacity: 0.8,
+          }}
+        />
+      ))}
+    </>
   );
 };
 

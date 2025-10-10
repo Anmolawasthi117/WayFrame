@@ -1,1 +1,37 @@
 @import "tailwindcss";
+/* --- Minimal Leaflet styles (no full leaflet.css needed) --- */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #f8fafc; /* Tailwind gray-50 */
+  outline: none;
+}
+
+.leaflet-control-container {
+  display: none; /* Hides default zoom buttons if you're doing custom UI */
+}
+
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-zoom-animated,
+.leaflet-zoom-hide {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.leaflet-image-layer,
+.leaflet-layer {
+  pointer-events: none;
+}
+
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  pointer-events: auto;
+}
+
+.leaflet-interactive {
+  cursor: pointer;
+}

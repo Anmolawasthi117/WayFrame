@@ -13,6 +13,13 @@ const toBase64 = (file) =>
     reader.readAsDataURL(file);
   });
 
+const getImageDimensions = (base64) =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.src = base64;
+  });
+
 const FloorManager = () => {
   const project = useProjectStore((s) => s.project);
   const activeFloorId = useProjectStore((s) => s.activeFloorId);
@@ -42,10 +49,15 @@ const FloorManager = () => {
           const base64 = await toBase64(file);
           const name = file.name.replace(/\.[^/.]+$/, "");
 
+          // Dynamically get image dimensions
+          const { width, height } = await getImageDimensions(base64);
+
           const newFloor = {
             name,
             level: project.floors.length + i,
             imageUrl: base64,
+            width,       // store dynamic width
+            height,      // store dynamic height
             id: crypto.randomUUID(),
           };
 

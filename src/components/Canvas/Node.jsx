@@ -1,62 +1,130 @@
+import { CircleMarker, Tooltip, Marker } from "react-leaflet";
+import { gridToMapCoords } from "../../utils/transformCoords";
+import L from "leaflet";
+
+const NODE_COLORS = {
+  room: "#2563eb",      // blue
+  hallway: "#10b981",   // green
+  stair: "#f59e0b",     // amber
+  elevator: "#8b5cf6",  // purple
+};
+
 const Node = ({
   node,
+  floor,
   mode,
-  selectedNodeId,
-  hoveredNode,
-  project,
-  handleNodeClick,
-  handleMouseDown,
-  setHoveredNode,
-  getNodeStyle,
-  zoom, // pass zoom from FloorCanvas
+  isSelected,
+  onSelect,
+  onDrag,
+  globalConnections = [],
 }) => {
-  const localConnectionCount = node.connections?.length || 0;
-  const globalConnectionCount =
-    project?.connections?.filter(
-      (c) => c.from === node.nodeId || c.to === node.nodeId
-    ).length || 0;
+  if (!floor) return null;
 
-  const nodeSize = 24; // base size in px
+  const { lat, lng } = gridToMapCoords({
+    x: node.coordinates.x,
+    y: node.coordinates.y,
+    floor,
+  });
 
+  const handleClick = (e) => {
+    e.originalEvent.stopPropagation();
+    onSelect(node);
+  };
+
+  const handleDragEnd = (e) => {
+    const { lat, lng } = e.target.getLatLng();
+    onDrag(node.nodeId, { lat, lng });
+  };
+
+  // local connections count
+  const localCount = node.connections?.length || 0;
+
+  // global connections count
+  const globalCount = globalConnections.filter(
+    (c) => c.from === node.nodeId || c.to === node.nodeId
+  ).length;
+
+  const fillColor = NODE_COLORS[node.type] || "#2563eb";
+
+  // Draggable marker for move mode
+  if (mode === "move") {
+    const icon = L.divIcon({
+      className: "",
+      html: `<div style="
+        width: ${isSelected ? 20 : 14}px;
+        height: ${isSelected ? 20 : 14}px;
+        background-color: ${fillColor};
+        border: 2px solid ${isSelected ? "#ef4444" : "#000"};
+        border-radius: 50%;
+      "></div>`,
+      iconSize: [isSelected ? 20 : 14, isSelected ? 20 : 14],
+    });
+
+    return (
+      <Marker
+        position={[lat, lng]}
+        icon={icon}
+        draggable
+        eventHandlers={{
+          dragend: handleDragEnd,
+          click: handleClick,
+        }}
+      >
+        <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+          <div className="relative text-xs font-medium text-gray-800 flex flex-col items-center">
+            {node.name || "Unnamed"} <br />
+            <span className="text-gray-500">{node.type}</span>
+            <div className="flex gap-1 mt-1">
+              {localCount > 0 && (
+                <span className="bg-blue-500 text-white text-[10px] px-1 rounded-full">
+                  {localCount}
+                </span>
+              )}
+              {globalCount > 0 && (
+                <span className="bg-green-500 text-white text-[10px] px-1 rounded-full">
+                  {globalCount}
+                </span>
+              )}
+            </div>
+          </div>
+        </Tooltip>
+      </Marker>
+    );
+  }
+
+  // Normal CircleMarker for select/connect modes
   return (
-    <div
-      className={`${getNodeStyle(node)} flex items-center justify-center`}
-      style={{
-        left: `${node.coordinates.x}%`,
-        top: `${node.coordinates.y}%`,
-        cursor: mode === "move" ? "move" : "pointer",
-        width: `${nodeSize / zoom}px`,
-        height: `${nodeSize / zoom}px`,
-        borderRadius: "50%",
-        // boxShadow: "0 0 4px rgba(0,0,0,0.3)",
-        position: "absolute",
+    <CircleMarker
+      center={[lat, lng]}
+      radius={isSelected ? 10 : 7}
+      pathOptions={{
+        color: mode === "connect" ? "#facc15" : isSelected ? "#ef4444" : fillColor,
+        weight: 2,
+        fillOpacity: 0.9,
       }}
-      onClick={(e) => handleNodeClick(node, e)}
-      onMouseDown={(e) => handleMouseDown(node, e)}
-      onMouseEnter={() => setHoveredNode(node.nodeId)}
-      onMouseLeave={() => setHoveredNode(null)}
+      eventHandlers={{
+        click: handleClick,
+      }}
     >
-      {/* Tooltip */}
-      {hoveredNode === node.nodeId && (
-        <div className="absolute bg-gray-800 text-white text-xs rounded-lg px-2 py-1 -top-6 left-1/2 transform -translate-x-1/2 z-30 shadow-lg whitespace-nowrap">
-          {node.name || "Unnamed"} ({node.type})
+      <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+        <div className="relative text-xs font-medium text-gray-800 flex flex-col items-center">
+          {node.name || "Unnamed"} <br />
+          <span className="text-gray-500">{node.type}</span>
+          <div className="flex gap-1 mt-1">
+            {localCount > 0 && (
+              <span className="bg-blue-500 text-white text-[10px] px-1 rounded-full">
+                {localCount}
+              </span>
+            )}
+            {globalCount > 0 && (
+              <span className="bg-green-500 text-white text-[10px] px-1 rounded-full">
+                {globalCount}
+              </span>
+            )}
+          </div>
         </div>
-      )}
-
-      {/* Local connection badge */}
-      {localConnectionCount > 0 && (
-        <span className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center shadow">
-          {localConnectionCount}
-        </span>
-      )}
-
-      {/* Global connection badge */}
-      {globalConnectionCount > 0 && (
-        <span className="absolute -bottom-2 -right-2 bg-blue-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center shadow">
-          {globalConnectionCount}
-        </span>
-      )}
-    </div>
+      </Tooltip>
+    </CircleMarker>
   );
 };
 
