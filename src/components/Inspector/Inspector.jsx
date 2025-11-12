@@ -96,7 +96,8 @@ const Inspector = () => {
 
   // ------------------- PROJECT STATS -------------------
   const getProjectStats = useCallback(() => {
-    const totalNodes = project?.floors?.reduce((acc, f) => acc + (f.nodes?.length || 0), 0) || 0;
+    const totalNodes =
+      project?.floors?.reduce((acc, f) => acc + (f.nodes?.length || 0), 0) || 0;
     const totalConnections = project?.connections?.length || 0;
     const floorCount = project?.floors?.length || 0;
     return { totalNodes, totalConnections, floorCount };
@@ -105,7 +106,21 @@ const Inspector = () => {
   const stats = getProjectStats();
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
+    <div
+      className="
+        fixed
+        top-0
+        right-0
+        h-full
+        w-80
+        bg-white
+        border-l
+        border-gray-200
+        flex
+        flex-col
+        z-50
+      "
+    >
       {/* HEADER */}
       <InspectorHeader
         exportProject={exportProject}
