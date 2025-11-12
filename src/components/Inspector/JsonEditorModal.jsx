@@ -24,7 +24,7 @@ const JsonEditorModal = ({ isOpen, onClose, data, onSave }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0  flex items-center justify-center bg-black/50">
       <div className="bg-white h-full rounded-lg shadow-lg w-[600px] max-h-[80vh] flex flex-col">
         {/* --- Header --- */}
         <div className="flex justify-between items-center p-3 border-b">
